@@ -1,0 +1,267 @@
+\input texinfo
+@c -*-texinfo-*-
+@c %**start of header
+@setfilename nanosvc.info
+@settitle nanosv Reference Manual
+@afourwide
+@exampleindent 0
+@paragraphindent 0
+@include version.texi
+@c %**end of header
+
+@copying
+This manual is for @command{nanosvc}.
+
+Copyright @copyright{} 2016 Roel Janssen
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.3 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, with no Front-Cover Texts, and with no Back-Cover
+Texts.  A copy of the license is included in the section entitled
+``GNU Free Documentation License''.
+@end quotation
+@end copying
+
+@titlepage
+  @title @command{nanosvc} reference manual
+  @subtitle Structural variant caller for long reads.
+  @author Roel Janssen
+  @page
+  @vskip 0pt plus 1filll
+  @insertcopying
+  @vskip 0pt plus 1filll
+@end titlepage
+
+@contents
+
+@node Top
+@top nanosvc
+
+This document describes @command{nanosvc} version @value{VERSION}, a structural
+variant caller for long reads.
+
+@menu
+* Introduction::                     What is @command{nanosvc} about?
+* Installation::                     How to install @command{nanosvc}.
+* Program design::                   How the program is designed.
+* Components function reference::    Function reference manual.
+* Contributing::                     How to contribute to @command{nanosvc}.
+* GNU Free Documentation License::   The license of this manual.
+@end menu
+
+@c ----------------------------------------------------------------------------
+@node Introduction
+@chapter Introduction
+
+
+@c ----------------------------------------------------------------------------
+@node Installation
+@chapter Installation
+
+@section Dependencies
+
+  Make sure you have the following libraries, development packages and build 
+  tools installed:
+
+  @itemize
+    @item GCC or CLANG
+    @item Automake
+    @item Autoconf
+    @item Make
+    @item GLib-2.0
+    @c @item zlib
+    @c @item Guile 2.0
+  @end itemize
+
+  To build the documentation you need some more programs:
+  @itemize
+    @item Texinfo
+    @item Dia
+    @item Dot (for diagrams inside Doxygen output)
+    @item ps2pdf
+  @end itemize
+
+  To build the reference manual for developers, you need even more programs:
+  @itemize
+    @item Doxygen
+  @end itemize
+
+@anchor{build_instructions}
+@section Build instructions for GNU/Linux
+  When you have resolved the dependencies listed above you can build 
+  the program by running:
+@example
+@cartouche
+autoreconf -i
+./configure
+make
+@end cartouche
+@end example
+  @*
+  @noindent Additionally you can add compiler flags:
+@example
+@cartouche
+autoreconf -i
+./configure CFLAGS="-Wall -O2 -march=native"
+make
+@end cartouche
+@end example
+  @*
+  @noindent Optionally you can generate developer documentation using Doxygen.
+@example
+@cartouche
+make docs-doxygen
+@end cartouche
+@end example
+
+@section Structural variants
+
+@c https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4479793/
+@c https://www.ncbi.nlm.nih.gov/dbvar/content/overview/
+
+  We define structural variants as genomic rearrangements larger than 1000
+  base pairs.  The Nanopore sequencing technology proves useful to detect
+  structural variation because it can read long sequences in comparison to
+  Illumina sequencers.
+
+  This program implements various algorithms to detect structural variation.
+  You can find psuedo-code for each algorithm in this document.
+
+@c @subsection Paired-end sequences
+@c @subsection Germline or somatic
+
+@section Future improvements
+
+@itemize
+  @item Read a BAM file directory so we no longer need sambamba for it.
+@end itemize
+
+@node Program design
+@chapter Program design
+
+This program has been greatly inspired by @command{nanosv} by Mark van
+Roosmalen.
+
+@c Figure @ref{fig:class-diagram} displays the object model used by the program.
+
+@node Components function reference
+@chapter Components function reference
+
+  The data model implemented by @command{nanosvc} follows the data model
+  described by the SAMv1 format specification.  A template contains reads, a
+  read contains segments, a segment can contain a breakpoint, and a breakpoint
+  can be a structural variant.
+
+  Each data structure provides its own interface, which is described in the
+  remainder of this chapter.
+
+@section Segment
+
+  @deffn {Segment} nsv_segment_new
+  The SAM format provides one read segment per line.  The data representation of
+  such a segment can be created with this function.  It returns a dynamically
+  allocated @code{nsv_segment_t} struct, which must be freed with
+  @code{nsv_segment_destroy}.
+  @end deffn
+
+  @deffn {Segment} nsv_segment_destroy instance
+  An @code{nsv_segment_t} object must be properly deallocated.  This function
+  does this.
+  @end deffn
+
+  @deffn {Segment} nsv_segment_from_stream stream
+  This function reads just enough bytes from @var{stream} and returns an
+  instance of @code{nsv_segment_t} containing the data it has read.  This
+  function can be used as an alternative constructor that automatically
+  sets the data.
+  @end deffn
+
+@section Read
+
+  @deffn {Read} nsv_read_new
+  Each read described in  a SAM or BAM file is built up from one or more
+  segments.  The segments belonging to one read have the same @code{qname}.
+  This function instantiates a data structure that contains the information
+  to describe a read (including its segments described as @code{nsv_segment_t}
+  instances).
+  @end deffn
+
+  @deffn {Read} nsv_read_destroy instance
+  An @code{nsv_read_t} object must be properly deallocated.  This function does
+  this.
+  @end deffn
+
+  @deffn {Read} nsv_read_add_segment instance segment
+  @end deffn
+
+  @deffn {Read} nsv_read_from_bam filename
+  This function reads the BAM file from @var{filename} and returns a
+  @code{GList} with @code{nsv_read_t} instances.
+  @end deffn
+
+@section Breakpoint
+
+  @deffn {Breakpoint} nsv_breakpoint_new
+  @end deffn
+
+  @deffn {Breakpoint} nsv_breakpoint_new_with_segments first second
+  @end deffn
+
+  @deffn {Breakpoint} nsv_breakpoint_destroy instance
+  @end deffn
+
+  @deffn {Breakpoint} nsv_breakpoint_destroy_full instance
+  @end deffn
+
+@section Trie
+
+  A trie is a data structure that provides efficient lookups of a @code{key} for
+  a @code{value}, where @code{key} is a string.  This data structure is used
+  internally by @command{nanosvc}.  It can be further used when extending the
+  usage of this program.
+
+  @deffn {Trie} trie_new
+  @end deffn
+
+  @deffn {Trie} trie_insert trie name element
+  @end deffn
+
+  @deffn {Trie} trie_find trie name
+  @end deffn
+
+  @deffn {Trie} trie_elements_in_trie trie
+  @end deffn
+
+  @deffn {Trie} trie_destroy trie
+  @end deffn
+
+  @deffn {Trie} trie_destroy_full trie callback
+  @end deffn
+
+@node Contributing
+@chapter Contributing
+
+  We welcome anyone to contribute to @command{nanosvc}.  There are a couple of
+  practicalities to be aware of to make the contribution process a smooth
+  experience.  One of these practicalities is the license choice.
+
+  Contributing source code must be made available under the same license as
+  @command{nanosvc} itself, which is the GPL version 3 or any later version
+  released by the Free Software Foundation.  Exceptions can be made, but these
+  should be discussed with the developers before inclusion of the source code.
+
+@section How to create and submit patches
+
+@section Checklist for contributing
+
+@itemize
+  @item 
+@end itemize  
+
+@node GNU Free Documentation License
+@chapter GNU Free Documentation License
+@include fdl-1.3.texi
+
+@bye @c Goodbye
