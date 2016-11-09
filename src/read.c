@@ -57,6 +57,17 @@ nsv_read_add_segment (struct nsv_read_t *read, struct nsv_segment_t *segment)
   return TRUE;
 }
 
+int
+nsv_segment_clip_compare (const void *a, const void *b)
+{
+  /* This is the shorthand notation for returning -1 when a is smaller than b, 
+   * 0 when a is equal to b, and 1 when a is bigger than b. */
+  return (GPOINTER_TO_INT (a) < GPOINTER_TO_INT(b))
+    ? -1
+    : (GPOINTER_TO_INT (a) == GPOINTER_TO_INT (b))
+      ? 0 : 1;
+}
+
 GList *
 nsv_reads_from_bam (const char *filename)
 {
@@ -112,9 +123,16 @@ nsv_reads_from_bam (const char *filename)
        * too.
        *
        * At run-time, the user can set the minimum map quality value.  Anything
-       * lower than this value will be filtered too. */
-      if (segment->flag & 0x4 || segment->mapq < nsv_config.min_map_quality
-          || segment->mapq == 255)
+       * lower than this value will be filtered too.
+       *
+       * TODO: These filter conditions can be abstracted away as functions,
+       * making the applicability of this function useful to a broader
+       * audience.
+       **/
+      if (segment->flag & 0x4
+          || segment->mapq < nsv_config.min_map_quality
+          || segment->mapq == 255
+          || nsv_segment_cigar_pid (segment) < nsv_config.min_identity)
         {
           free (qname);
           nsv_segment_destroy (segment);
@@ -140,6 +158,22 @@ nsv_reads_from_bam (const char *filename)
               read_obj = trie_element;
               free (qname);
             }
+
+          if (read_obj->btree == NULL)
+            {
+              /* This balanced binary tree indexes the segments by their
+               * clipping value. */
+              read_obj->btree = g_tree_new (&nsv_segment_clip_compare);
+              if (read_obj->btree == NULL)
+                {
+                  nsv_read_destroy (read_obj);
+                  goto allocation_error_handler;
+                }
+            }
+
+          int32_t clip = nsv_segment_cigar_first_clip (segment);
+          if (clip >= 0)
+            g_tree_insert (read_obj->btree, GINT_TO_POINTER (clip), segment);
 
           segment->read = read_obj;
           read_obj->segments = g_list_prepend (read_obj->segments, segment);

@@ -41,6 +41,7 @@ struct nsv_read_t
   char *qname;
   //uint32_t seq_len;             /* This cannot be determined easily. */
   GList *segments;
+  GTree *btree;
 };
 
 /**
