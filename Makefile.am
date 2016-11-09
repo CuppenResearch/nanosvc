@@ -29,14 +29,17 @@ nanosvc_SOURCES         = src/main.c 		\
 bin_PROGRAMS 		= nanosvc
 check_PROGRAMS          = tests/cigar
 
+nanosvc_LDFLAGS         = $(glib_LIBS) $(libinfra_LIBS)
+nanosvc_LDADD           = -lm -ldl
+
 tests_cigar_SOURCES     = tests/cigar.c src/segment.c src/nanosvc.c
 tests_cigar_LDFLAGS     = $(nanosvc_LDFLAGS)
 tests_cigar_LDADD       = -lm -ldl
 
-nanosvc_LDFLAGS         = $(glib_LIBS) $(libinfra_LIBS)
-nanosvc_LDADD           = -lm -ldl
-
-dist_data_DATA          = $(DOXYGEN_FILES)
+dist_data_DATA          = LICENSE \
+			  doc/nanosvc.texi \
+			  doc/fdl-1.3.texi \
+			  doc/version.texi
 
 CLEAN_TARGET            = docs-clean
 
@@ -53,9 +56,9 @@ libtool: $(LIBTOOL_DEPS)
 clean-local: $(CLEAN_TARGET)
 
 pdf-local:
-	@texi2pdf -q doc/nanosvc.texi -o doc/nanosvc.pdf
-	@$(RM) *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr
-	@$(RM) doc/images/*.pdf doc/images/*.eps
+	@cd doc && texi2pdf -q nanosvc.texi -o nanosvc.pdf && \
+	$(RM) *.aux *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.fns \
+	images/*.pdf images/*.eps
 
 info-local:
 	@makeinfo doc/nanosvc.texi -o doc/nanosvc.info

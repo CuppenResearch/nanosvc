@@ -21,6 +21,7 @@
 #include <getopt.h>
 #include <stdint.h>
 #include <glib.h>
+#include <libinfra/logger.h>
 
 #ifdef ENABLE_MTRACE
 #include <mcheck.h>
@@ -81,9 +82,19 @@ parse_reads (GList *reads_list)
               struct nsv_segment_t *first = segments->data;
               struct nsv_segment_t *second = segments->next->data;
 
-              //uint32_t gap = ...;
-              //uint32_t breakpoint_1 = ...;
-              //uint32_t breakpoint_2 = ...;
+              int32_t clip_first = nsv_segment_cigar_first_clip (first);
+              int32_t clip_second = nsv_segment_cigar_first_clip (second);
+              if (clip_first == -1 || clip_second == -1)
+                {
+                  segments = segments->next;
+                  continue;
+                }
+
+              struct nsv_breakpoint_t *breakpoint;
+              breakpoint = nsv_breakpoint_new_with_segments (first, second);
+              breakpoint->gap = clip_first - clip_second + first->seq_len;
+
+              segments = segments->next;
             }
         }
 
@@ -116,8 +127,9 @@ main (int argc, char **argv)
       return 1;
     }
 
-  int arg = 0;
-  int index = 0;
+  int32_t arg = 0;
+  int32_t index = 0;
+  char *z_option = NULL;
 
   /*----------------------------------------------------------------------.
    | OPTIONS                                                              |
@@ -138,10 +150,10 @@ main (int argc, char **argv)
     { "log-file",          required_argument, 0, 'l' },
     { "help",              no_argument,       0, 'h' },
     { "version",           no_argument,       0, 'v' },
-    { "test",              required_argument, 0, 'z' },
+    { "test",              no_argument,       0, 'z' },
     { 0,                   0,                 0, 0 }
   };
-  
+
   while (arg != -1)
     {
       /* Make sure to list all short options in the string below. */
@@ -158,11 +170,14 @@ main (int argc, char **argv)
         case 'm': nsv_config.min_map_quality = atof (optarg); break;
         case 'f': break;
         case 'l': nsv_config.logger = infra_logger_new (optarg); break;
-        case 'z': parse_sam_output (optarg); break;
+        case 'z': z_option = optarg; break;
         case 'v': show_version (); break;
         case 'h': show_help (); break;
         }
     }
+
+  if (z_option != NULL)
+    parse_sam_output (z_option);
 
   #ifdef ENABLE_MTRACE
   muntrace ();
