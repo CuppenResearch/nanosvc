@@ -44,8 +44,9 @@ struct nsv_breakpoint_t
    * So, this array does not have to allocated explicitly.  Its memory
    * is allocated when the memory for the entire struct is allocated. */
   struct nsv_segment_t *segments[2]; /*< Segments involved in the breakpoint. */
-  uint32_t breakpoints[2];           /*< The position of the breakpoints. */
-  uint32_t gap;                      /*< The gap between the segments. */
+
+  int32_t breakpoints[2];            /*< The position of the breakpoints. */
+  int32_t gap;                       /*< The gap between the segments. */
 };
 
 /**

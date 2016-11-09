@@ -52,6 +52,10 @@ nsv_breakpoint_new_with_segments (struct nsv_segment_t *first,
   breakpoint->segments[0] = first;
   breakpoint->segments[1] = second;
 
+  /* When the 0x10 flag is set, it's a reverse complement. */
+  breakpoint->breakpoints[0] = (first->flag & 0x10) ? first->pos : first->end;
+  breakpoint->breakpoints[1] = (second->flag & 0x10) ? second->pos : second->end;
+
   return breakpoint;
 }
 
