@@ -74,10 +74,10 @@ struct nsv_segment_t
   float rlength;                /*< Median length of the total reads. */
   float plength;                /*< Median segment length percentage of the
                                     two segments of the structural variant. */
+  int32_t clip;                 /*< The first clip value in the CIGAR string. */
 
   int32_t end;
   char *id;
-  char *clip;
   float pid;
 };
 
@@ -95,6 +95,22 @@ struct nsv_segment_t * nsv_segment_new (void);
  */
 struct nsv_segment_cigar_overview_t
 nsv_segment_cigar_overview (struct nsv_segment_t *segment);
+
+/**
+ * This function returns the value of the first clip (hard or soft)
+ * it finds in the CIGAR string.
+ *
+ * @param segment  The segment to analyze the CIGAR string of.
+ * @return the first clip found in the CIGAR string.
+ */
+int32_t nsv_segment_cigar_first_clip (struct nsv_segment_t *segment);
+
+/**
+ * This function returns the percentage identity to the reference.
+ * @param segment  The segment to analyze th CIGAR string of.
+ * @return The percentage identity to the reference.
+ */
+float nsv_segment_cigar_pid (struct nsv_segment_t *segment);
 
 /**
  * 

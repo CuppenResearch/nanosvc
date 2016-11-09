@@ -131,8 +131,116 @@ nsv_segment_from_stream (FILE *stream, char **qname_ptr)
   /* Set extra fields. */
   segment->seq_len = strlen (segment->seq);
 
+  /* TODO: What's the proper name for this? */
+  struct nsv_segment_cigar_overview_t overview;
+  segment->end = segment->pos + segment->seq_len;
+  segment->end += overview.deletions;
+  segment->end -= overview.insertions;
+
   *qname_ptr = qname;
   return segment;
+}
+
+float
+nsv_segment_cigar_pid (struct nsv_segment_t *segment)
+{
+  /* We assume a number won't have more than 64 digits here. :) */
+  char buffer[64];
+  memset (buffer, '\0', 64);
+
+  uint32_t cigar_len = strlen (segment->cigar);
+  if (cigar_len == 0)
+    return -1;
+
+  uint32_t cigar_index = 0;
+  uint32_t buffer_index = 0;
+  for (; cigar_index < cigar_len; cigar_index++)
+    {
+      switch (segment->cigar[cigar_index])
+        {
+        case 'I':
+        case 'D':
+        case 'M':
+        case 'N':
+        case 'X':
+        case 'S':
+        case 'H':
+          break;
+        case '=':
+          return (atof (buffer) / segment->seq_len);
+          break;
+        default:
+          {
+            buffer[buffer_index] = segment->cigar[cigar_index];
+            buffer_index++;
+
+            /* We don't want to clear the buffer when it hasn't reached an
+             * action yet.  We therefore skip the rest of the loop. */
+            continue;
+          }
+          break;
+        }
+
+      memset (buffer, '\0', buffer_index);
+      buffer_index = 0;
+    }
+
+  return -1;
+}
+
+int32_t
+nsv_segment_cigar_first_clip (struct nsv_segment_t *segment)
+{
+  if (segment == NULL)
+    return -1;
+
+  /* Use the cached value whenever it's available. */
+  if (segment->clip != -1)
+    return segment->clip;
+
+  /* We assume a number won't have more than 64 digits here. :) */
+  char buffer[64];
+  memset (buffer, '\0', 64);
+
+  uint32_t cigar_len = strlen (segment->cigar);
+  if (cigar_len == 0)
+    return -1;
+
+  uint32_t cigar_index = 0;
+  uint32_t buffer_index = 0;
+  for (; cigar_index < cigar_len; cigar_index++)
+    {
+      switch (segment->cigar[cigar_index])
+        {
+        case 'I':
+        case 'D':
+        case 'M':
+        case 'N':
+        case '=':
+        case 'X':
+          break;
+        case 'S':
+        case 'H':
+          segment->clip = atoi (buffer);
+          return segment->clip;
+          break;
+        default:
+          {
+            buffer[buffer_index] = segment->cigar[cigar_index];
+            buffer_index++;
+
+            /* We don't want to clear the buffer when it hasn't reached an
+             * action yet.  We therefore skip the rest of the loop. */
+            continue;
+          }
+          break;
+        }
+
+      memset (buffer, '\0', buffer_index);
+      buffer_index = 0;
+    }
+
+  return -1;
 }
 
 struct nsv_segment_cigar_overview_t
@@ -165,7 +273,7 @@ nsv_segment_cigar_overview (struct nsv_segment_t *segment)
         case 'D': overview.deletions         += atoi (buffer); break;
         case 'M': overview.alignment_matches += atoi (buffer); break;
         case 'N': overview.skipped           += atoi (buffer); break;
-        case 'S': overview.soft_clip         += atoi (buffer); break;
+        case 'S': overview.soft_clip          = atoi (buffer); break;
         case 'H': overview.hard_clip          = atoi (buffer); break;
         case 'P': overview.padding           += atoi (buffer); break;
         case '=': overview.matches           += atoi (buffer); break;
