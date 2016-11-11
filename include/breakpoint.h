@@ -80,6 +80,25 @@ bool
 nsv_breakpoint_switch_segments (struct nsv_breakpoint_t *breakpoint);
 
 /**
+ * This function determines whether there is a breakpoint in a nsv_read_t
+ * struct specified by 'read_ptr'.  If it finds a breakpoint, it adds its
+ * nsv_breakpoint_t struct to the list provided in 'list_ptr'.
+ * @param read_ptr  The read to analyze.
+ * @param list_ptr  The list to add the possible breakpoint to.
+ *
+ * @return TRUE on success, FALSE on failure.
+ */
+bool nsv_breakpoints_from_read (void *read_ptr, void **list_ptr);
+
+/**
+ * This function sets the breakpoint positions for a given breakpoint.
+ * @param breakpoint  The breakpoint to set the breakpoint positions for.
+ *
+ * @return TRUE on success, FALSE on failure.
+ */
+bool nsv_breakpoint_set_breakpoint (struct nsv_breakpoint_t *breakpoint);
+
+/**
  * This function removes a nsv_breakpoint_t from memory.  A void pointer
  * is used to play nicely with generic 'free' callback handlers.
  * @param breakpoint   A pointer to a nsv_breakpoint_t struct.
