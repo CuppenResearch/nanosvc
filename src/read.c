@@ -57,17 +57,6 @@ nsv_read_add_segment (struct nsv_read_t *read, struct nsv_segment_t *segment)
   return TRUE;
 }
 
-int
-nsv_segment_clip_compare (const void *a, const void *b)
-{
-  /* This is the shorthand notation for returning -1 when a is smaller than b, 
-   * 0 when a is equal to b, and 1 when a is bigger than b. */
-  return (GPOINTER_TO_INT (a) < GPOINTER_TO_INT(b))
-    ? -1
-    : (GPOINTER_TO_INT (a) == GPOINTER_TO_INT (b))
-      ? 0 : 1;
-}
-
 GList *
 nsv_reads_from_bam (const char *filename)
 {
@@ -140,6 +129,17 @@ nsv_reads_from_bam (const char *filename)
         }
       else
         {
+          /* When a segment does not have a clipping point, then we cannot
+           * use it to detect structural variation. */
+          int32_t clip = nsv_segment_cigar_first_clip (segment);
+          if (clip == -1)
+            {
+              free (qname);
+              nsv_segment_destroy (segment);
+              filtered_count++;
+              continue;
+            }
+
           struct nsv_read_t *read_obj = NULL;
           struct nsv_read_t *trie_element = trie_find (trie, qname);
           if (trie_element == NULL)
@@ -159,29 +159,15 @@ nsv_reads_from_bam (const char *filename)
               free (qname);
             }
 
-          if (read_obj->btree == NULL)
-            {
-              /* This balanced binary tree indexes the segments by their
-               * clipping value. */
-              read_obj->btree = g_tree_new (&nsv_segment_clip_compare);
-              if (read_obj->btree == NULL)
-                {
-                  nsv_read_destroy (read_obj);
-                  goto allocation_error_handler;
-                }
-            }
-
-          int32_t clip = nsv_segment_cigar_first_clip (segment);
-          if (clip >= 0)
-            g_tree_insert (read_obj->btree, GINT_TO_POINTER (clip), segment);
-
           segment->read = read_obj;
           read_obj->segments = g_list_prepend (read_obj->segments, segment);
           added_count++;
         }
     }
 
-  printf ("Parsed %u segments.\n", added_count + filtered_count);
+  infra_logger_log (nsv_config.logger, LOG_INFO,
+                    "Parsed %u segments, of which %u were filtered.",
+                    added_count + filtered_count, filtered_count);
 
   /* Now that we have parsed all output from sambamba, we can close the pipe. */
   pclose (command);
