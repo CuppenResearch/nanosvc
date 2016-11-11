@@ -59,11 +59,16 @@ show_help ()
 }
 
 void
-parse_reads (GList *reads_list)
+parse_sam_output (char *filename)
 {
+  printf ("Parsing '%s'.\n", filename);
+  GList *reads_list = nsv_reads_from_bam (filename);
+  printf ("Parsed %d reads.\n", g_list_length (reads_list));
+
   if (reads_list == NULL)
     return;
 
+  GList *breakpoints_list = NULL;
   while (reads_list->next != NULL)
     {
       struct nsv_read_t *read_obj = reads_list->data;
@@ -73,45 +78,21 @@ parse_reads (GList *reads_list)
           continue;
         }
 
-      GList *segments = read_obj->segments;
-      uint32_t segments_len = g_list_length (segments);
-      if (segments_len > 1 && segments_len < nsv_config.max_split)
-        {
-          while (segments->next != NULL)
-            {
-              struct nsv_segment_t *first = segments->data;
-              struct nsv_segment_t *second = segments->next->data;
-
-              int32_t clip_first = nsv_segment_cigar_first_clip (first);
-              int32_t clip_second = nsv_segment_cigar_first_clip (second);
-              if (clip_first == -1 || clip_second == -1)
-                {
-                  segments = segments->next;
-                  continue;
-                }
-
-              struct nsv_breakpoint_t *breakpoint;
-              breakpoint = nsv_breakpoint_new_with_segments (first, second);
-              breakpoint->gap = clip_first - clip_second + first->seq_len;
-
-              segments = segments->next;
-            }
-        }
+      /* Gather a list of breakpoints.  Unfortunately, this isn't all
+       * "functional programming perfect", so we let the callback function
+       * add to the new list.*/
+      g_list_foreach (read_obj->segments,
+                      &nsv_breakpoints_from_read,
+                      (void *)&breakpoints_list);
 
       reads_list = reads_list->next;
     }
-}
 
-void
-parse_sam_output (char *filename)
-{
-  printf ("Parsing '%s'.\n", filename);
-  GList *reads;
-  reads = nsv_reads_from_bam (filename);
-  printf ("Parsed %d reads.\n", g_list_length (reads));
-
-  /* TODO: Free the reads.. */
-  g_list_free_full (reads, nsv_read_destroy);
+  printf ("Found %d breakpoints.\n", g_list_length (breakpoints_list));
+  
+  /* TODO: Free the breakpoints and the reads.. */
+  g_list_free_full (breakpoints_list, nsv_breakpoint_destroy);
+  g_list_free_full (reads_list, nsv_read_destroy);
 }
   
 int
