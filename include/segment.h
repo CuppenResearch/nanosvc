@@ -113,6 +113,21 @@ int32_t nsv_segment_cigar_first_clip (struct nsv_segment_t *segment);
 float nsv_segment_cigar_pid (struct nsv_segment_t *segment);
 
 /**
+ * This function compares two nsv_segment_t* structs by their clip value
+ * as found using 'nsv_segment_cigar_first_clip()'.
+ *
+ * We use void pointers here to allow this function to be used as a
+ * comparison function for GLib list and tree structures.
+ *
+ * @param first   A pointer to the first nsv_segment_t struct to compare.
+ * @param second  A pointer to the second nsv_segment_t struct to compare.
+ *
+ * @return -1 when first is smaller than second, 0 when both are equal, 1 
+ *         when second is smaller than first.
+ */
+int nsv_segment_clip_compare (const void *first, const void *second);
+
+/**
  * 
  */
 void nsv_segment_plength (struct nsv_segment_t *segment);

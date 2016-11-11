@@ -141,6 +141,28 @@ nsv_segment_from_stream (FILE *stream, char **qname_ptr)
   return segment;
 }
 
+int
+nsv_segment_clip_compare (const void *first, const void *second)
+{
+  /* Treat an unset element as the smallest possible value. */
+  if (first == NULL && second == NULL)
+    return 0;
+  else if (first == NULL)
+    return -1;
+  else if (second == NULL)
+    return 1;
+
+  struct nsv_segment_t *a = (struct nsv_segment_t *)first;
+  struct nsv_segment_t *b = (struct nsv_segment_t *)second;
+
+  int32_t a_clip = nsv_segment_cigar_first_clip (a);
+  int32_t b_clip = nsv_segment_cigar_first_clip (b);
+
+  /* This is the shorthand notation for returning -1 when a is smaller than b, 
+   * 0 when a is equal to b, and 1 when a is bigger than b. */
+  return (a_clip < b_clip) ? -1 : (a_clip == b_clip) ? 0 : 1;
+}
+
 float
 nsv_segment_cigar_pid (struct nsv_segment_t *segment)
 {
