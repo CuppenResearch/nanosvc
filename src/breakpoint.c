@@ -74,6 +74,29 @@ nsv_breakpoint_destroy (void *breakpoint_obj)
   free (breakpoint);
 }
 
+bool
+nsv_breakpoint_switch_segments (struct nsv_breakpoint_t *breakpoint)
+{
+  if (breakpoint == NULL)
+    return FALSE;
+
+  struct nsv_segment_t *first = breakpoint->segments[0];
+  struct nsv_segment_t *second = breakpoint->segments[1];
+
+  if (first == NULL || second == NULL)
+    return FALSE;
+
+  /* Switch the segment pointers. */
+  breakpoint->segments[0] = second;
+  breakpoint->segments[1] = first;
+
+  /* Toggle the 0x10 flag.
+   * TODO: Figure out why. */
+  first->flag &= (first->flag & 0x10) ? 0x0 : 0x10;
+  second->flag &= (second->flag & 0x10) ? 0x0 : 0x10;
+
+  return TRUE;
+}
 
 void
 nsv_breakpoint_destroy_full (void *breakpoint_obj)

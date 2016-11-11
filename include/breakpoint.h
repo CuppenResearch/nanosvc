@@ -24,6 +24,7 @@
 #include "nanosvc.h"
 
 #include <glib.h>
+#include <stdbool.h>
 
 /**
  * This data structure contains the information about a read of a
@@ -67,6 +68,16 @@ struct nsv_breakpoint_t *nsv_breakpoint_new (void);
 struct nsv_breakpoint_t *
 nsv_breakpoint_new_with_segments (struct nsv_segment_t *first,
                                   struct nsv_segment_t *second);
+
+/**
+ * This function switches the segments in the breakpoint and toggles the
+ * 0x10 flag as a side-effect.
+ * @param breakpoint  The breakpoint to switch the segments of.
+ *
+ * @return TRUE on success, FALSE on failure to switch the segments.
+ */
+bool
+nsv_breakpoint_switch_segments (struct nsv_breakpoint_t *breakpoint);
 
 /**
  * This function removes a nsv_breakpoint_t from memory.  A void pointer
