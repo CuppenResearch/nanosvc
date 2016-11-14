@@ -68,6 +68,13 @@ bool nsv_read_add_segment (struct nsv_read_t *read,
 GList * nsv_reads_from_bam (const char *filename);
 
 /**
+ * This function extracts a list of nsv_read_t objects from a SAM file.
+ * @param filename  The file to read.
+ * @return A GList containing nsv_read_t objects.
+ */
+GList * nsv_reads_from_sam (const char *filename);
+
+/**
  * This function removes a nsv_read_t from memory.  A void pointer
  * is used to play nicely with generic 'free' callback handlers.
  * @param read_obj   A pointer to a nsv_read_t struct.

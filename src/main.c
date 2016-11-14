@@ -61,9 +61,32 @@ show_help ()
 void
 parse_sam_output (char *filename)
 {
-  printf ("Parsing '%s'.\n", filename);
-  GList *reads_list = nsv_reads_from_bam (filename);
-  printf ("Parsed %d reads.\n", g_list_length (reads_list));
+  infra_logger_log (nsv_config.logger, LOG_INFO, "Parsing '%s'\n", filename);
+
+  char *extension = strrchr (filename, '.');
+  if (extension == NULL)
+    {
+      infra_logger_log (nsv_config.logger, LOG_ERROR,
+                        "Could not determine the file extension of '%s'\n",
+                        filename);
+      return;
+    }
+
+  /* Skip the dot. */
+  extension++;
+
+  GList *reads_list;
+  if (!strcmp (extension, "sam"))
+    reads_list = nsv_reads_from_sam (filename);
+  else if (!strcmp (extension, "bam"))
+    reads_list = nsv_reads_from_bam (filename);
+  else
+    {
+      infra_logger_log (nsv_config.logger, LOG_ERROR,
+                        "Unsupported file extension for '%s'\n",
+                        filename);
+      return;
+    }
 
   if (reads_list == NULL)
     return;
@@ -88,8 +111,10 @@ parse_sam_output (char *filename)
       reads_list = reads_list->next;
     }
 
-  printf ("Found %d breakpoints.\n", g_list_length (breakpoints_list));
-  
+  infra_logger_log (nsv_config.logger, LOG_INFO,
+                    "Found %d breakpoints.\n",
+                    g_list_length (breakpoints_list));
+
   /* TODO: Free the breakpoints and the reads.. */
   g_list_free_full (breakpoints_list, nsv_breakpoint_destroy);
   g_list_free_full (reads_list, nsv_read_destroy);

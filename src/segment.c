@@ -82,7 +82,29 @@ nsv_segment_from_stream (FILE *stream, char **qname_ptr)
 
   while (buffer != EOF)
     {
-      if (buffer == '\n')
+      /* When we encounter a header line, we need to skip the entire line. */
+      if (field_pos == 0 && field_index == 0 && buffer == '@')
+        {
+          /* Skip the current line. */
+          while (buffer != '\n' && buffer != EOF)
+            buffer = getc (stream);
+
+          if (buffer == EOF)
+            {
+              nsv_segment_destroy (segment);
+              return NULL;
+            }
+
+          /* Reset the state. */
+          field_pos = 0;
+          field_index = 0;
+
+          /* Move past the '\n' character. */
+          buffer = getc (stream);
+          continue;
+        }
+
+      else if (buffer == '\n')
         {
           /* TODO: Add the last field to the segment. */
           break;
@@ -129,7 +151,8 @@ nsv_segment_from_stream (FILE *stream, char **qname_ptr)
     }
 
   /* Set extra fields. */
-  segment->seq_len = strlen (segment->seq);
+  if (segment->seq != NULL)
+    segment->seq_len = strlen (segment->seq);
 
   /* TODO: What's the proper name for this? */
   struct nsv_segment_cigar_overview_t overview;

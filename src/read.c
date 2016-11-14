@@ -57,35 +57,14 @@ nsv_read_add_segment (struct nsv_read_t *read, struct nsv_segment_t *segment)
   return TRUE;
 }
 
-GList *
-nsv_reads_from_bam (const char *filename)
+bool
+nsv_reads_from_stream (FILE *stream, GList **output_ptr)
 {
-  if (filename == NULL)
-    return NULL;
-
-  /* This stack buffer will contain the command to run. */
-  size_t command_line_len = 20 + strlen (filename);
-  char command_line[command_line_len];
-
-  snprintf (command_line, command_line_len,
-            "sambamba view -t %u %s",
-            nsv_config.max_threads, filename);
-
-  command_line[command_line_len - 1] = '\0';
-
-  infra_logger_log (nsv_config.logger, LOG_INFO, "Running: %s", command_line);
-
-  FILE *command = popen (command_line, "r");
-  if (command == NULL)
-    {
-      infra_logger_log (nsv_config.logger, LOG_ERROR,
-                        "Could not run sambamba.");
-
-      return NULL;
-    }
+  if (output_ptr == NULL)
+    return FALSE;
 
   /* We will store the list of segments in this variable. */
-  GList *output = NULL;
+  GList *output = *output_ptr;
 
   /* Do some accounting for the segment parsing. */
   uint32_t filtered_count = 0;
@@ -99,7 +78,7 @@ nsv_reads_from_bam (const char *filename)
 
   char *qname = NULL;
   struct nsv_segment_t *segment = NULL;
-  while ((segment = nsv_segment_from_stream (command, &qname)) != NULL)
+  while ((segment = nsv_segment_from_stream (stream, &qname)) != NULL)
     {
       /* Filter/remove unmapped and low map quality segments.
        *
@@ -169,12 +148,6 @@ nsv_reads_from_bam (const char *filename)
                     "Parsed %u segments, of which %u were filtered.",
                     added_count + filtered_count, filtered_count);
 
-  /* Now that we have parsed all output from sambamba, we can close the pipe. */
-  pclose (command);
-
-  /* All segments have been read, so we no longer need the trie. */
-  trie_destroy (trie);
-
   /* Provide feedback to the user on the parsing step. */
   infra_logger_log (nsv_config.logger, LOG_INFO,
                     "Parsed %u segments from sambamba's output.",
@@ -184,14 +157,80 @@ nsv_reads_from_bam (const char *filename)
                     "Filtered %u segments with a map quality threshold of %d.",
                     filtered_count, nsv_config.min_map_quality);
 
-  return output;
+  /* All segments have been read, so we no longer need the trie. */
+  trie_destroy (trie);
+
+  *output_ptr = output;
+  return TRUE;
 
  allocation_error_handler:
   infra_logger_error_alloc (nsv_config.logger);
-  pclose (command);
   g_list_free_full (output, nsv_read_destroy);
+  *output_ptr = NULL;
+  return FALSE;
+}
 
-  return NULL;
+GList *
+nsv_reads_from_sam (const char *filename)
+{
+  if (filename == NULL)
+    return NULL;
+
+  FILE *sam_file = fopen (filename, "r");
+  if (sam_file == NULL)
+    {
+      infra_logger_log (nsv_config.logger, LOG_ERROR,
+                        "Could not open the SAM file.");
+
+      return NULL;
+    }
+
+  infra_logger_log (nsv_config.logger, LOG_INFO, "Reading from: %s", filename);
+
+  /* When nsv_reads_from_stream fails, 'output' will be NULL, which is
+   * exactly the value we need upon an error. */
+  GList *output = NULL;
+  nsv_reads_from_stream (sam_file, &output);
+  
+  fclose (sam_file);
+  return output;
+}
+
+GList *
+nsv_reads_from_bam (const char *filename)
+{
+  if (filename == NULL)
+    return NULL;
+
+  /* This stack buffer will contain the command to run. */
+  size_t command_line_len = 20 + strlen (filename);
+  char command_line[command_line_len];
+
+  snprintf (command_line, command_line_len,
+            "sambamba view -t %u %s",
+            nsv_config.max_threads, filename);
+
+  command_line[command_line_len - 1] = '\0';
+
+  infra_logger_log (nsv_config.logger, LOG_INFO, "Running: %s", command_line);
+
+  FILE *command = popen (command_line, "r");
+  if (command == NULL)
+    {
+      infra_logger_log (nsv_config.logger, LOG_ERROR,
+                        "Could not run sambamba.");
+
+      return NULL;
+    }
+
+  /* We will store the list of reads in this variable. */
+  GList *output = NULL;
+  nsv_reads_from_stream (command, &output);
+
+  /* Now that we have parsed all output from sambamba, we can close the pipe. */
+  pclose (command);
+
+  return output;
 }
 
 void
